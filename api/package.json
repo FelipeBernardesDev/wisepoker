@@ -1,7 +1,7 @@
 {
   "name": "wisepoker",
   "version": "1.0.0",
-  "description": "",
+  "description": "A poker platform API for managing poker games, players, and tournaments.",
   "main": "dist/server.js",
   "private": true,
   "engines": {
@@ -33,9 +33,12 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@fastify/swagger": "^9.9.2",
     "@pokertools/engine": "^2.0.4",
+    "@scalar/fastify-api-reference": "^1.74.0",
     "dotenv": "^18.0.7",
     "fastify": "^5.12.5",
+    "fastify-type-provider-zod": "^7.0.0",
     "pino": "^10.4.0",
     "zod": "^4.6.6"
   }
