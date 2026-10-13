@@ -31,7 +31,14 @@ app.register(fastifyRateLimit, {
     timeWindow: '1 minute',
 })
 
-app.register(fastifyHelmet)
+app.register(fastifyHelmet, {
+    contentSecurityPolicy: {
+        directives: {
+            scriptSrc: ["'self'", "'sha256-JkA735X2v9G7RiNukJ0TOSrXYxNxIgF+PzWkIeLLnis='"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+        },
+    },
+})
 
 app.register(fastifySwagger, {
     openapi: {
