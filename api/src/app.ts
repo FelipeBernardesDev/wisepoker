@@ -8,6 +8,10 @@ import {
     jsonSchemaTransform,
     type ZodTypeProvider,
 } from 'fastify-type-provider-zod'
+import { fastifyCors } from '@fastify/cors'
+import { fastifyRateLimit } from '@fastify/rate-limit'
+import { fastifyHelmet } from '@fastify/helmet'
+import { env } from './config/env.js'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -15,6 +19,19 @@ export const app = fastify({
 
 app.setSerializerCompiler(serializerCompiler)
 app.setValidatorCompiler(validatorCompiler)
+
+app.register(fastifyCors, {
+    origin: env.CORS_ORIGINS,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+})
+
+app.register(fastifyRateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+})
+
+app.register(fastifyHelmet)
 
 app.register(fastifySwagger, {
     openapi: {
