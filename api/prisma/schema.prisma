@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PLAYER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  publicId     String     @unique @default(uuid()) @map("public_id") @db.Uuid
+  userName     String     @unique @map("user_name")
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  avatarUrl    String?    @map("avatar_url")
+  role         Role       @default(PLAYER)
+  status       UserStatus @default(ACTIVE)
+
+  sessions Session[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Session {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid()) @map("public_id") @db.Uuid
+  userId   Int    @map("user_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoket_at")
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at")
+
+  userAgent String? @map("user_agent")
+  ip        String? @db.Inet
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
