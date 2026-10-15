@@ -12,6 +12,7 @@ import { fastifyCors } from '@fastify/cors'
 import { fastifyRateLimit } from '@fastify/rate-limit'
 import { fastifyHelmet } from '@fastify/helmet'
 import { env } from './config/env.js'
+import { routes } from './http/routes/index.js'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -55,3 +56,5 @@ app.register(fastifySwagger, {
 app.register(fastifyApiReference, {
     routePrefix: '/docs',
 })
+
+app.register(routes, { prefix: '/api/v1' })
