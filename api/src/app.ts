@@ -13,6 +13,7 @@ import { fastifyRateLimit } from '@fastify/rate-limit'
 import { fastifyHelmet } from '@fastify/helmet'
 import { env } from './config/env.js'
 import { routes } from './http/routes/index.js'
+import { errorHandler } from './http/error-handler.js'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -20,6 +21,8 @@ export const app = fastify({
 
 app.setSerializerCompiler(serializerCompiler)
 app.setValidatorCompiler(validatorCompiler)
+
+app.setErrorHandler(errorHandler)
 
 app.register(fastifyCors, {
     origin: env.CORS_ORIGINS,
@@ -45,6 +48,7 @@ app.register(fastifySwagger, {
     openapi: {
         openapi: '3.0.0',
         info: {
+            
             title: 'WisePoker API',
             description: 'API responsible for providing services to the Wisepoker platform.',
             version: '1.0.0',
