@@ -19,14 +19,15 @@ enum UserStatus {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  publicId     String     @unique @default(uuid()) @map("public_id") @db.Uuid
-  userName     String     @unique @map("user_name")
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  avatarUrl    String?    @map("avatar_url")
-  role         Role       @default(PLAYER)
-  status       UserStatus @default(ACTIVE)
+  id            Int        @id @default(autoincrement())
+  publicId      String     @unique @default(uuid()) @map("public_id") @db.Uuid
+  userName      String     @map("user_name")
+  userNameLower String     @unique @map("user_name_lower")
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  avatarUrl     String?    @map("avatar_url")
+  role          Role       @default(PLAYER)
+  status        UserStatus @default(ACTIVE)
 
   sessions Session[]
 
@@ -44,7 +45,7 @@ model Session {
 
   refreshTokenHash String    @unique @map("refresh_token_hash")
   expiresAt        DateTime  @map("expires_at")
-  revokedAt        DateTime? @map("revoket_at")
+  revokedAt        DateTime? @map("revoked_at")
   lastUsedAt       DateTime  @default(now()) @map("last_used_at")
 
   userAgent String? @map("user_agent")

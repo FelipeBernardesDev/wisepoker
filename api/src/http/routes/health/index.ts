@@ -1,3 +1,4 @@
+import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -13,15 +14,16 @@ export async function healthRoute(app: FastifyInstance) {
                 response: {
                     200: z.object({
                         status: z.string(),
-                        timeStamp: z.iso.datetime(),
+                        timestamp: z.iso.datetime(),
                     }),
+                    500: errorResponseSchema,
                 },
             },
         },
         () => {
             return {
                 status: 'ok',
-                timeStamp: new Date().toISOString(),
+                timestamp: new Date().toISOString(),
             }
         },
     )

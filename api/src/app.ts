@@ -14,6 +14,8 @@ import { fastifyHelmet } from '@fastify/helmet'
 import { env } from './config/env.js'
 import { routes } from './http/routes/index.js'
 import { errorHandler } from './http/error-handler.js'
+import { fastifyCookie } from '@fastify/cookie'
+import { fastifyJwt } from '@fastify/jwt'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -44,11 +46,23 @@ app.register(fastifyHelmet, {
     },
 })
 
+app.register(fastifyJwt, {
+    secret: env.JWT_SECRET,
+
+    cookie: {
+        cookieName: 'access_token',
+        signed: false,
+    },
+})
+
+app.register(fastifyCookie, {
+    secret: env.COOKIE_SECRET,
+})
+
 app.register(fastifySwagger, {
     openapi: {
         openapi: '3.0.0',
         info: {
-            
             title: 'WisePoker API',
             description: 'API responsible for providing services to the Wisepoker platform.',
             version: '1.0.0',
