@@ -37,6 +37,15 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
         }
     }
 
+    if (error.statusCode === 429) {
+        return sendError(
+            reply,
+            429,
+            'TOO_MANY_REQUESTS',
+            'Too many requests, please try again later',
+        )
+    }
+
     request.log.error(error)
     return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', 'Internal server error')
 }
