@@ -14,6 +14,7 @@ const envSchema = z.object({
     COOKIE_SECRET: z.string(),
     JWT_EXPIRES_IN_SECONDS: z.coerce.number().default(900),
     JWT_REFRESH_EXPIRES_IN_SECONDS: z.coerce.number().default(604800),
+    RATE_LIMIT_MAX: z.coerce.number().default(100),
 })
 
 const _env = envSchema.safeParse(process.env)

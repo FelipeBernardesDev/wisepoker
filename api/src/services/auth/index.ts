@@ -1,6 +1,6 @@
-import { ConflictError } from '@/errors/index.js'
-import { RegisterInput } from '@/http/schemas/auth/index.js'
-import { hashPassword } from '@/lib/password.js'
+import { ConflictError, UnauthorizedError } from '@/errors/index.js'
+import { LoginInput, RegisterInput } from '@/http/schemas/auth/index.js'
+import { comparePassword, hashPassword } from '@/lib/password.js'
 import { prisma } from '@/lib/prisma.js'
 import { createHash } from 'node:crypto'
 import { env } from '@/config/env.js'
@@ -60,4 +60,31 @@ export async function registerService(data: RegisterInput) {
     })
 
     return user
+}
+
+export async function loginService(data: LoginInput) {
+    const identifier = data.identifier.trim().toLowerCase()
+
+    const user = await prisma.user.findFirst({
+        where: {
+            OR: [{ email: identifier }, { userNameLower: identifier }],
+        },
+    })
+
+    if (!user) {
+        throw new UnauthorizedError('Invalid credentials')
+    }
+
+    const passwordMatch = await comparePassword(data.password, user.passwordHash)
+
+    if (!passwordMatch) {
+        throw new UnauthorizedError('Invalid credentials')
+    }
+
+    return {
+        id: user.id,
+        publicId: user.publicId,
+        userName: user.userName,
+        userNameLower: user.userNameLower,
+    }
 }

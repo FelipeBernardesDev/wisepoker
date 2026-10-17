@@ -33,7 +33,8 @@ app.register(fastifyCors, {
 })
 
 app.register(fastifyRateLimit, {
-    max: 100,
+    global: env.NODE_ENV !== 'test',
+    max: env.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
 })
 

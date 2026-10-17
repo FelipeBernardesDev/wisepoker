@@ -29,4 +29,16 @@ export const registerSchema = z
         path: ['confirmPassword'],
     })
 
+export const loginSchema = z.object({
+    identifier: z
+        .string()
+        .trim()
+        .min(1, 'Email or username is required')
+        .max(255, 'Email or username is too long')
+        .regex(/^\S+$/, 'Email or username must not contain whitespace'),
+
+    password: z.string().min(1, 'Password is required'),
+})
+
 export type RegisterInput = z.infer<typeof registerSchema>
+export type LoginInput = z.infer<typeof loginSchema>
