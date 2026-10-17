@@ -29,3 +29,9 @@ export class ConflictError extends AppError {
         super(409, 'CONFLICT', message)
     }
 }
+
+export class InsufficientFundsError extends AppError {
+    constructor(message: string) {
+        super(400, 'INSUFFICIENT_FUNDS', message)
+    }
+}
