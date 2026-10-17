@@ -49,7 +49,7 @@ export async function registerController(
             maxAge: env.JWT_EXPIRES_IN_SECONDS,
         })
         .setCookie('refresh_token', refreshToken, {
-            path: '/api/v1/auth/refresh',
+            path: '/api/v1/auth',
             httpOnly: true,
             secure: env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -107,7 +107,7 @@ export async function loginController(
             maxAge: env.JWT_EXPIRES_IN_SECONDS,
         })
         .setCookie('refresh_token', refreshToken, {
-            path: '/api/v1/auth/refresh',
+            path: '/api/v1/auth',
             httpOnly: true,
             secure: env.NODE_ENV === 'production',
             sameSite: 'lax',
