@@ -1,4 +1,8 @@
-import { loginController, registerController } from '@/http/controllers/auth/index.js'
+import {
+    loginController,
+    logoutController,
+    registerController,
+} from '@/http/controllers/auth/index.js'
 import { loginSchema, registerSchema } from '@/http/schemas/auth/index.js'
 import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import { FastifyInstance } from 'fastify'
@@ -68,5 +72,28 @@ export async function loginRoute(app: FastifyInstance) {
             },
         },
         loginController,
+    )
+}
+
+export async function logoutRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().post(
+        '',
+        {
+            schema: {
+                tags: ['Authorization'],
+                summary: 'Logout',
+                description: 'End the current session and clear cookies',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                response: {
+                    204: z.null(),
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        logoutController,
     )
 }

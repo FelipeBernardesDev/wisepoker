@@ -68,6 +68,15 @@ app.register(fastifySwagger, {
             description: 'API responsible for providing services to the Wisepoker platform.',
             version: '1.0.0',
         },
+        components: {
+            securitySchemes: {
+                cookieAuth: {
+                    type: 'apiKey',
+                    in: 'cookie',
+                    name: 'access_token',
+                },
+            },
+        },
     },
     transform: jsonSchemaTransform,
 })

@@ -1,6 +1,11 @@
 import { env } from '@/config/env.js'
 import { LoginInput, RegisterInput } from '@/http/schemas/auth/index.js'
-import { createSessionService, loginService, registerService } from '@/services/auth/index.js'
+import {
+    createSessionService,
+    loginService,
+    logoutService,
+    registerService,
+} from '@/services/auth/index.js'
 import { randomUUID } from 'node:crypto'
 import { FastifyReply, FastifyRequest } from 'fastify'
 
@@ -120,4 +125,16 @@ export async function loginController(
                 userName: user.userName,
             },
         })
+}
+
+export async function logoutController(request: FastifyRequest, reply: FastifyReply) {
+    const refreshToken = request.cookies.refresh_token
+
+    await logoutService(refreshToken)
+
+    return reply
+        .clearCookie('access_token', { path: '/' })
+        .clearCookie('refresh_token', { path: '/api/v1/auth' })
+        .status(204)
+        .send()
 }

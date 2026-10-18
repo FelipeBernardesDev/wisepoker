@@ -88,3 +88,15 @@ export async function loginService(data: LoginInput) {
         userNameLower: user.userNameLower,
     }
 }
+
+export async function logoutService(refreshToken: string | undefined) {
+    if (!refreshToken) return
+
+    const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex')
+
+    await prisma.session.deleteMany({
+        where: {
+            refreshTokenHash,
+        },
+    })
+}
