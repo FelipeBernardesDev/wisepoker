@@ -79,6 +79,7 @@ export async function logoutRoute(app: FastifyInstance) {
     app.withTypeProvider<ZodTypeProvider>().post(
         '',
         {
+            onRequest: [app.authenticate],
             schema: {
                 tags: ['Authorization'],
                 summary: 'Logout',
