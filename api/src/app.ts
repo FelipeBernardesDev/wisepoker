@@ -15,7 +15,7 @@ import { env } from './config/env.js'
 import { routes } from './http/routes/index.js'
 import { errorHandler } from './http/error-handler.js'
 import { fastifyCookie } from '@fastify/cookie'
-import { fastifyJwt } from '@fastify/jwt'
+import authPlugin from '@/plugins/auth.js'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -47,18 +47,11 @@ app.register(fastifyHelmet, {
     },
 })
 
-app.register(fastifyJwt, {
-    secret: env.JWT_SECRET,
-
-    cookie: {
-        cookieName: 'access_token',
-        signed: false,
-    },
-})
-
 app.register(fastifyCookie, {
     secret: env.COOKIE_SECRET,
 })
+
+app.register(authPlugin)
 
 app.register(fastifySwagger, {
     openapi: {
