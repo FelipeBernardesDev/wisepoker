@@ -116,7 +116,7 @@ export async function refreshTokenRoute(app: FastifyInstance) {
                 description: 'Issue a new access token using the refresh token cookie.',
                 security: [
                     {
-                        cookieAuth: [],
+                        refreshCookieAuth: [],
                     },
                 ],
                 response: {

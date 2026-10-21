@@ -68,6 +68,11 @@ app.register(fastifySwagger, {
                     in: 'cookie',
                     name: 'access_token',
                 },
+                refreshCookieAuth: {
+                    type: 'apiKey',
+                    in: 'cookie',
+                    name: 'refresh_token',
+                },
             },
         },
     },
