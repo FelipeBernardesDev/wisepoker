@@ -54,8 +54,8 @@ export async function registerService(data: RegisterInput) {
         select: {
             id: true,
             publicId: true,
+            role: true,
             userName: true,
-            userNameLower: true,
         },
     })
 
@@ -84,8 +84,8 @@ export async function loginService(data: LoginInput) {
     return {
         id: user.id,
         publicId: user.publicId,
+        role: user.role,
         userName: user.userName,
-        userNameLower: user.userNameLower,
     }
 }
 

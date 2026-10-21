@@ -22,7 +22,9 @@ export async function registerController(
     const accessToken = await reply.jwtSign(
         {
             sub: user.publicId,
+            role: user.role,
             userName: user.userName,
+            type: 'access',
         },
         {
             expiresIn: env.JWT_EXPIRES_IN_SECONDS,
@@ -32,7 +34,9 @@ export async function registerController(
     const refreshToken = await reply.jwtSign(
         {
             sub: user.publicId,
+            role: user.role,
             userName: user.userName,
+            type: 'refresh',
         },
         {
             expiresIn: env.JWT_REFRESH_EXPIRES_IN_SECONDS,
@@ -82,7 +86,9 @@ export async function loginController(
     const accessToken = await reply.jwtSign(
         {
             sub: user.publicId,
+            role: user.role,
             userName: user.userName,
+            type: 'access',
         },
         { expiresIn: env.JWT_EXPIRES_IN_SECONDS },
     )
@@ -90,7 +96,9 @@ export async function loginController(
     const refreshToken = await reply.jwtSign(
         {
             sub: user.publicId,
+            role: user.role,
             userName: user.userName,
+            type: 'refresh',
         },
         {
             expiresIn: env.JWT_REFRESH_EXPIRES_IN_SECONDS,
@@ -165,8 +173,8 @@ export async function refreshTokenController(request: FastifyRequest, reply: Fas
     const accessToken = await reply.jwtSign(
         {
             sub: user.publicId,
-            userName: user.userName,
             role: user.role,
+            userName: user.userName,
             type: 'access',
         },
         { expiresIn: env.JWT_EXPIRES_IN_SECONDS },
@@ -175,8 +183,8 @@ export async function refreshTokenController(request: FastifyRequest, reply: Fas
     const refreshToken = await reply.jwtSign(
         {
             sub: user.publicId,
-            userName: user.userName,
             role: user.role,
+            userName: user.userName,
             type: 'refresh',
         },
         {
