@@ -5,7 +5,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify'
 import { UnauthorizedError } from '@/errors/index.js'
 
 export default fastifyPlugin(async function authPlugin(app: FastifyInstance) {
-    app.register(fastifyJwt, {
+    await app.register(fastifyJwt, {
         secret: env.JWT_SECRET,
 
         cookie: {
@@ -16,7 +16,11 @@ export default fastifyPlugin(async function authPlugin(app: FastifyInstance) {
 
     app.decorate('authenticate', async function (request: FastifyRequest) {
         try {
-            await request.jwtVerify()
+            const payload = await request.jwtVerify<{ type: string }>()
+
+            if (payload.type !== 'access') {
+                throw new UnauthorizedError('Wrong token type')
+            }
         } catch {
             throw new UnauthorizedError('Authentication required')
         }
