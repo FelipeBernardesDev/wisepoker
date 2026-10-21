@@ -156,15 +156,13 @@ export async function refreshTokenController(request: FastifyRequest, reply: Fas
         throw new UnauthorizedError('Invalid refresh token')
     }
 
-    let payload
-
     try {
-        payload = request.server.jwt.verify<{ type: string }>(oldRefreshToken)
-    } catch {
-        throw new UnauthorizedError('Invalid refresh token')
-    }
+        const payload = request.server.jwt.verify<{ type: string }>(oldRefreshToken)
 
-    if (payload.type !== 'refresh') {
+        if (payload.type !== 'refresh') {
+            throw new UnauthorizedError('Invalid refresh token')
+        }
+    } catch {
         throw new UnauthorizedError('Invalid refresh token')
     }
 
