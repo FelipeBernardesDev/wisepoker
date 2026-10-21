@@ -100,3 +100,41 @@ export async function logoutService(refreshToken: string | undefined) {
         },
     })
 }
+
+export async function refreshTokenService(refreshToken: string) {
+    const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex')
+
+    const session = await prisma.session.findFirst({
+        where: { refreshTokenHash },
+        include: { user: true },
+    })
+
+    if (!session) {
+        throw new UnauthorizedError('Invalid refresh token')
+    }
+
+    if (session.expiresAt < new Date()) {
+        await prisma.session.deleteMany({
+            where: {
+                id: session.id,
+            },
+        })
+
+        throw new UnauthorizedError('Invalid refresh token')
+    }
+
+    const { count } = await prisma.session.deleteMany({
+        where: { id: session.id },
+    })
+
+    if (count === 0) {
+        throw new UnauthorizedError('Invalid refresh token')
+    }
+
+    return {
+        id: session.user.id,
+        publicId: session.user.publicId,
+        role: session.user.role,
+        userName: session.user.userName,
+    }
+}

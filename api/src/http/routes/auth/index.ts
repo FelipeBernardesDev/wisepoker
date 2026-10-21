@@ -1,6 +1,7 @@
 import {
     loginController,
     logoutController,
+    refreshTokenController,
     registerController,
 } from '@/http/controllers/auth/index.js'
 import { loginSchema, registerSchema } from '@/http/schemas/auth/index.js'
@@ -96,5 +97,41 @@ export async function logoutRoute(app: FastifyInstance) {
             },
         },
         logoutController,
+    )
+}
+
+export async function refreshTokenRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().post(
+        '',
+        {
+            config: {
+                rateLimit: {
+                    max: 10,
+                    timeWindow: '1 minute',
+                },
+            },
+            schema: {
+                tags: ['Authorization'],
+                summary: 'Refresh Token',
+                description: 'Issue a new access token using the refresh token cookie.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                response: {
+                    200: z.object({
+                        user: z.object({
+                            id: z.uuid(),
+                            userName: z.string(),
+                        }),
+                    }),
+                    401: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        refreshTokenController,
     )
 }
