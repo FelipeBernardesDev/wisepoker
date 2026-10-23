@@ -16,6 +16,7 @@ export async function healthRoute(app: FastifyInstance) {
                         status: z.string(),
                         timestamp: z.iso.datetime(),
                     }),
+                    429: errorResponseSchema,
                     500: errorResponseSchema,
                 },
             },

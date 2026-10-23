@@ -29,6 +29,7 @@ export async function getMeRoute(app: FastifyInstance) {
                     401: errorResponseSchema,
                     403: errorResponseSchema,
                     404: errorResponseSchema,
+                    429: errorResponseSchema,
                     500: errorResponseSchema,
                 },
             },
