@@ -18,6 +18,25 @@ enum UserStatus {
   BANNED
 }
 
+enum Currency {
+  PLAY
+  USD
+}
+
+enum AccountType {
+  MAIN
+  IN_PLAY
+  HOUSE
+}
+
+enum TxType {
+  DEPOSIT
+  WITHDRAWAL
+  BUY_IN
+  CASH_OUT
+  RAKE
+}
+
 model User {
   id            Int        @id @default(autoincrement())
   publicId      String     @unique @default(uuid()) @map("public_id") @db.Uuid
@@ -30,6 +49,7 @@ model User {
   status        UserStatus @default(ACTIVE)
 
   sessions Session[]
+  accounts Account[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -56,4 +76,34 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+model Account {
+  id       Int         @id @default(autoincrement())
+  userId   Int         @map("user_id")
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type     AccountType
+  currency Currency    @default(PLAY)
+  balance  BigInt      @default(0)
+
+  entries LedgerEntry[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, type, currency])
+  @@map("accounts")
+}
+
+model LedgerEntry {
+  id          Int     @id @default(autoincrement())
+  accountId   Int     @map("account_id")
+  account     Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount      BigInt
+  type        TxType
+  referenceId String? @map("reference_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@map("ledger_entries")
 }
