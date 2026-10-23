@@ -25,4 +25,13 @@ export default fastifyPlugin(async function authPlugin(app: FastifyInstance) {
             throw new UnauthorizedError('Authentication required')
         }
     })
+
+    app.decorate('getCurrentUser', function (request: FastifyRequest) {
+        const payload = request.user
+
+        return {
+            id: payload.sub,
+            role: payload.role,
+        }
+    })
 })
