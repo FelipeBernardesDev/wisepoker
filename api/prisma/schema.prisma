@@ -79,9 +79,12 @@ model Session {
 }
 
 model Account {
-  id       Int         @id @default(autoincrement())
-  userId   Int         @map("user_id")
-  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid()) @map("public_id")
+
+  userId Int  @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   type     AccountType
   currency Currency    @default(PLAY)
   balance  BigInt      @default(0)
@@ -95,9 +98,12 @@ model Account {
 }
 
 model LedgerEntry {
-  id          Int     @id @default(autoincrement())
-  accountId   Int     @map("account_id")
-  account     Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid()) @map("public_id")
+
+  accountId Int     @map("account_id")
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   amount      BigInt
   type        TxType
   referenceId String? @map("reference_id")
