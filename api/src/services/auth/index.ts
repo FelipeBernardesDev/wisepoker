@@ -28,6 +28,8 @@ export async function createSessionService(data: CreateSessionInput) {
     })
 }
 
+const INITIAL_PLAY_BALANCE = 10_000n
+
 export async function registerService(data: RegisterInput) {
     const email = data.email.trim().toLowerCase()
     const userNameLower = data.userName.trim().toLowerCase()
@@ -50,6 +52,29 @@ export async function registerService(data: RegisterInput) {
             userNameLower,
             email,
             passwordHash,
+            accounts: {
+                create: [
+                    {
+                        type: 'MAIN',
+                        currency: 'PLAY',
+                        balance: INITIAL_PLAY_BALANCE,
+                        entries: {
+                            create: [
+                                {
+                                    amount: INITIAL_PLAY_BALANCE,
+                                    type: 'DEPOSIT',
+                                    referenceId: 'WELCOME_BONUS',
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        type: 'IN_PLAY',
+                        currency: 'PLAY',
+                        balance: 0n,
+                    },
+                ],
+            },
         },
         select: {
             id: true,
