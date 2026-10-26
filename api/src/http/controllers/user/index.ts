@@ -1,5 +1,5 @@
 import { UpdateUserInput } from '@/http/schemas/user/index.js'
-import { getProfileService, updateUserService } from '@/services/user/index.js'
+import { deleteUserService, getProfileService, updateUserService } from '@/services/user/index.js'
 import { FastifyReply, FastifyRequest } from 'fastify'
 
 export async function getMeController(request: FastifyRequest, reply: FastifyReply) {
@@ -19,4 +19,16 @@ export async function updateUserController(
     const user = await updateUserService(userId, request.body)
 
     return reply.status(200).send({ user })
+}
+
+export async function deleteUserController(request: FastifyRequest, reply: FastifyReply) {
+    const { id: userId } = request.server.getCurrentUser(request)
+
+    await deleteUserService(userId)
+
+    return reply
+        .clearCookie('access_token', { path: '/' })
+        .clearCookie('refresh_token', { path: '/api/v1/auth' })
+        .status(204)
+        .send()
 }

@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError } from '@/errors/index.js'
 import { UpdateUserInput } from '@/http/schemas/user/index.js'
 import { prisma } from '@/lib/prisma.js'
+import { createHash } from 'node:crypto'
 
 export async function getProfileService(userId: string) {
     const user = await prisma.user.findUnique({
@@ -109,4 +110,19 @@ export async function updateUserService(userId: string, data: UpdateUserInput) {
         status: updatedUser.status,
         createdAt: updatedUser.createdAt,
     }
+}
+export async function deleteUserService(userId: string) {
+    const user = await prisma.user.findUnique({
+        where: { publicId: userId },
+        select: { id: true },
+    })
+
+    if (!user) {
+        throw new NotFoundError('User not found')
+    }
+
+    await prisma.$transaction([
+        prisma.session.deleteMany({ where: { userId: user.id } }),
+        prisma.user.delete({ where: { id: user.id } }),
+    ])
 }

@@ -1,4 +1,8 @@
-import { getMeController, updateUserController } from '@/http/controllers/user/index.js'
+import {
+    deleteUserController,
+    getMeController,
+    updateUserController,
+} from '@/http/controllers/user/index.js'
 import { authorize } from '@/http/hooks/authorize.js'
 import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import {
@@ -8,6 +12,7 @@ import {
 } from '@/http/schemas/user/index.js'
 import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 
 export async function getMeRoute(app: FastifyInstance) {
     app.withTypeProvider<ZodTypeProvider>().get(
@@ -68,5 +73,30 @@ export async function updateUserRoute(app: FastifyInstance) {
             },
         },
         updateUserController,
+    )
+}
+
+export async function deleteUserRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().delete(
+        '',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('delete', 'User')],
+            schema: {
+                tags: ['Users'],
+                summary: 'Delete current user',
+                description: 'Deletes the authenticated user account and all its sessions.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                response: {
+                    204: z.null(),
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        deleteUserController,
     )
 }
