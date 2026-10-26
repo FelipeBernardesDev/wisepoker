@@ -93,6 +93,10 @@ export async function deleteUserRoute(app: FastifyInstance) {
                 ],
                 response: {
                     204: z.null(),
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    429: errorResponseSchema,
                     500: errorResponseSchema,
                 },
             },

@@ -1,7 +1,6 @@
 import { ConflictError, NotFoundError } from '@/errors/index.js'
 import { UpdateUserInput } from '@/http/schemas/user/index.js'
 import { prisma } from '@/lib/prisma.js'
-import { createHash } from 'node:crypto'
 
 export async function getProfileService(userId: string) {
     const user = await prisma.user.findUnique({
@@ -111,6 +110,7 @@ export async function updateUserService(userId: string, data: UpdateUserInput) {
         createdAt: updatedUser.createdAt,
     }
 }
+
 export async function deleteUserService(userId: string) {
     const user = await prisma.user.findUnique({
         where: { publicId: userId },
