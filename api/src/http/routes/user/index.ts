@@ -49,6 +49,12 @@ export async function updateUserRoute(app: FastifyInstance) {
         {
             onRequest: [app.authenticate],
             preHandler: [authorize('update', 'User')],
+            config: {
+                rateLimit: {
+                    max: 10,
+                    timeWindow: '1 minute',
+                },
+            },
             schema: {
                 tags: ['Users'],
                 summary: 'Update current user profile',
