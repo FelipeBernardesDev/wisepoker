@@ -24,6 +24,7 @@ export async function getMeRoute(app: FastifyInstance) {
                 rateLimit: {
                     max: 60,
                     timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
                 },
             },
             schema: {
@@ -59,6 +60,7 @@ export async function updateUserRoute(app: FastifyInstance) {
                 rateLimit: {
                     max: 10,
                     timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
                 },
             },
             schema: {
@@ -98,6 +100,7 @@ export async function deleteUserRoute(app: FastifyInstance) {
                 rateLimit: {
                     max: 3,
                     timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
                 },
             },
             schema: {

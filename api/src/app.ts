@@ -36,6 +36,7 @@ app.register(fastifyRateLimit, {
     global: env.NODE_ENV !== 'test',
     max: env.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
+    hook: 'preHandler',
 })
 
 app.register(fastifyHelmet, {
