@@ -20,6 +20,12 @@ export async function getMeRoute(app: FastifyInstance) {
         {
             onRequest: [app.authenticate],
             preHandler: [authorize('read', 'User')],
+            config: {
+                rateLimit: {
+                    max: 60,
+                    timeWindow: '1 minute',
+                },
+            },
             schema: {
                 tags: ['Users'],
                 summary: 'Get current user profile',
@@ -88,6 +94,12 @@ export async function deleteUserRoute(app: FastifyInstance) {
         {
             onRequest: [app.authenticate],
             preHandler: [authorize('delete', 'User')],
+            config: {
+                rateLimit: {
+                    max: 3,
+                    timeWindow: '1 minute',
+                },
+            },
             schema: {
                 tags: ['Users'],
                 summary: 'Delete current user',
