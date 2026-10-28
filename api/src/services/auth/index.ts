@@ -73,6 +73,16 @@ export async function registerService(data: RegisterInput) {
                         currency: 'PLAY',
                         balance: 0n,
                     },
+                    {
+                        type: 'MAIN',
+                        currency: 'USD',
+                        balance: 0n,
+                    },
+                    {
+                        type: 'IN_PLAY',
+                        currency: 'USD',
+                        balance: 0n,
+                    },
                 ],
             },
         },
