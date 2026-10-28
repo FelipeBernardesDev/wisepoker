@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { healthRoute } from './health/index.js'
 import { loginRoute, logoutRoute, refreshTokenRoute, registerRoute } from './auth/index.js'
 import { deleteUserRoute, getMeRoute, updateUserRoute } from './user/index.js'
-import { getWalletRoute } from './wallet/index.js'
+import { getWalletLedgerRoute, getWalletRoute } from './wallet/index.js'
 
 export async function routes(app: FastifyInstance) {
     //Health Check
@@ -18,4 +18,5 @@ export async function routes(app: FastifyInstance) {
     await app.register(deleteUserRoute, { prefix: '/users/me' })
     // Wallet
     await app.register(getWalletRoute, { prefix: '/wallet' })
+    await app.register(getWalletLedgerRoute, { prefix: '/wallet/ledger' })
 }
