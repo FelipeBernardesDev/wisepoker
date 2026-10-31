@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   ADMIN
   PLAYER
+  SYSTEM
 }
 
 enum UserStatus {
@@ -27,6 +28,7 @@ enum AccountType {
   MAIN
   IN_PLAY
   HOUSE
+  HOUSE_RESERVE
 }
 
 enum TxType {
@@ -87,7 +89,7 @@ model Account {
   publicId String @unique @default(uuid()) @map("public_id") @db.Uuid
 
   userId Int  @map("user_id")
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   type     AccountType
   currency Currency    @default(PLAY)
@@ -96,6 +98,7 @@ model Account {
   entries LedgerEntry[]
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, type, currency])
   @@map("accounts")
