@@ -9,12 +9,16 @@
   },
   "scripts": {
     "dev": "tsx --watch src/server.ts",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build": "prisma generate && tsup",
+    "start": "node dist/server.js",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset && prisma db seed",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio",
-    "start": "node dist/server.js"
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
   },
   "author": {
     "name": "Felipe Bernardes",
@@ -23,11 +27,11 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.14.0",
+      "version": "12.16.1",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.14.0",
+  "packageManager": "pnpm@12.16.1",
   "type": "module",
   "devDependencies": {
     "@types/node": "^26.6.5",
