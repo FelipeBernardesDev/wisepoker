@@ -26,6 +26,7 @@ export const ledgerEntrySchema = z.object({
         z.literal('BUY_IN'),
         z.literal('CASH_OUT'),
         z.literal('RAKE'),
+        z.literal('FREE_CLAIM'),
     ]),
     referenceId: z.string().nullable(),
     account: z.object({
@@ -46,6 +47,7 @@ export const getLedgerQuerySchema = z.object({
             z.literal('BUY_IN'),
             z.literal('CASH_OUT'),
             z.literal('RAKE'),
+            z.literal('FREE_CLAIM'),
         ])
         .optional(),
 })
@@ -65,4 +67,3 @@ export const getLedgerResponseSchema = z.object({
 export type LedgerEntryResponse = z.infer<typeof ledgerEntrySchema>
 export type GetLedgerQuery = z.infer<typeof getLedgerQuerySchema>
 export type GetLedgerResponse = z.infer<typeof getLedgerResponseSchema>
-

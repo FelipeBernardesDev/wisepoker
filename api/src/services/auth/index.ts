@@ -1,9 +1,10 @@
-import { ConflictError, UnauthorizedError } from '@/errors/index.js'
+import { ConflictError, NotFoundError, UnauthorizedError } from '@/errors/index.js'
 import { LoginInput, RegisterInput } from '@/http/schemas/auth/index.js'
 import { comparePassword, hashPassword } from '@/lib/password.js'
 import { prisma } from '@/lib/prisma.js'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { env } from '@/config/env.js'
+import { HOUSE_EMAIL } from '@/config/system.js'
 
 type CreateSessionInput = {
     userId: number
@@ -46,55 +47,91 @@ export async function registerService(data: RegisterInput) {
 
     const passwordHash = await hashPassword(data.password)
 
-    const user = await prisma.user.create({
-        data: {
-            userName: data.userName,
-            userNameLower,
-            email,
-            passwordHash,
-            accounts: {
-                create: [
-                    {
-                        type: 'MAIN',
-                        currency: 'PLAY',
-                        balance: INITIAL_PLAY_BALANCE,
-                        entries: {
-                            create: [
-                                {
-                                    amount: INITIAL_PLAY_BALANCE,
-                                    type: 'DEPOSIT',
-                                    referenceId: 'WELCOME_BONUS',
-                                },
-                            ],
-                        },
-                    },
-                    {
-                        type: 'IN_PLAY',
-                        currency: 'PLAY',
-                        balance: 0n,
-                    },
-                    {
-                        type: 'MAIN',
-                        currency: 'USD',
-                        balance: 0n,
-                    },
-                    {
-                        type: 'IN_PLAY',
-                        currency: 'USD',
-                        balance: 0n,
-                    },
-                ],
-            },
-        },
-        select: {
-            id: true,
-            publicId: true,
-            role: true,
-            userName: true,
-        },
-    })
+    const welcomeBonusTxId = randomUUID()
 
-    return user
+    return await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+            data: {
+                userName: data.userName.trim(),
+                userNameLower,
+                email,
+                passwordHash,
+                accounts: {
+                    create: [
+                        {
+                            type: 'MAIN',
+                            currency: 'PLAY',
+                            balance: INITIAL_PLAY_BALANCE,
+                            entries: {
+                                create: [
+                                    {
+                                        transactionId: welcomeBonusTxId,
+                                        amount: INITIAL_PLAY_BALANCE,
+                                        type: 'FREE_CLAIM',
+                                        referenceId: 'WELCOME_BONUS',
+                                    },
+                                ],
+                            },
+                        },
+                        {
+                            type: 'IN_PLAY',
+                            currency: 'PLAY',
+                            balance: 0n,
+                        },
+                        {
+                            type: 'MAIN',
+                            currency: 'USD',
+                            balance: 0n,
+                        },
+                        {
+                            type: 'IN_PLAY',
+                            currency: 'USD',
+                            balance: 0n,
+                        },
+                    ],
+                },
+            },
+            select: {
+                id: true,
+                publicId: true,
+                role: true,
+                userName: true,
+            },
+        })
+
+        const houseReserve = await tx.account.findFirst({
+            where: {
+                type: 'HOUSE_RESERVE',
+                currency: 'PLAY',
+                user: { email: HOUSE_EMAIL },
+            },
+        })
+
+        if (!houseReserve) {
+            throw new NotFoundError('House reserve account not found')
+        }
+
+        await tx.account.update({
+            where: { id: houseReserve.id },
+            data: {
+                balance: {
+                    decrement: INITIAL_PLAY_BALANCE,
+                },
+            },
+        })
+
+        await tx.ledgerEntry.create({
+            data: {
+                accountId: houseReserve.id,
+                transactionId: welcomeBonusTxId,
+                amount: -INITIAL_PLAY_BALANCE,
+                type: 'FREE_CLAIM',
+                referenceId: 'WELCOME_BONUS',
+            },
+        })
+
+        return user
+    })
 }
 
 export async function loginService(data: LoginInput) {

@@ -15,6 +15,8 @@ const envSchema = z.object({
     JWT_EXPIRES_IN_SECONDS: z.coerce.number().default(900),
     JWT_REFRESH_EXPIRES_IN_SECONDS: z.coerce.number().default(604800),
     RATE_LIMIT_MAX: z.coerce.number().default(100),
+    ADMIN_PASSWORD: z.string(),
+    ADMIN_EMAIL: z.string(),
 })
 
 const _env = envSchema.safeParse(process.env)

@@ -60,7 +60,7 @@ export async function getWalletLedgerService(userId: string, query: GetLedgerQue
             where,
             take: limit,
             skip: (page - 1) * limit,
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             select: {
                 publicId: true,
                 amount: true,
@@ -99,4 +99,3 @@ export async function getWalletLedgerService(userId: string, query: GetLedgerQue
         },
     }
 }
-
