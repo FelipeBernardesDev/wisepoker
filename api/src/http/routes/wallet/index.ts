@@ -1,10 +1,12 @@
 import {
+    claimFreeChipsController,
     getWalletController,
     getWalletLedgerController,
 } from '@/http/controllers/wallet/index.js'
 import { authorize } from '@/http/hooks/authorize.js'
 import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import {
+    claimResponseSchema,
     getLedgerQuerySchema,
     getLedgerResponseSchema,
     getWalletResponseSchema,
@@ -87,3 +89,41 @@ export async function getWalletLedgerRoute(app: FastifyInstance) {
     )
 }
 
+export async function claimFreeChipsRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().post(
+        '',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('deposit', 'Wallet')],
+            config: {
+                rateLimit: {
+                    max: 10,
+                    timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
+                },
+            },
+            schema: {
+                tags: ['Wallet'],
+                summary: 'Claim free play chips',
+                description:
+                    'Claim free PLAY chips every 4 hours. Play chips only (not USD), debited from house reserve via double-entry ledger.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                response: {
+                    200: claimResponseSchema,
+                    400: errorResponseSchema,
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    409: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        claimFreeChipsController,
+    )
+}

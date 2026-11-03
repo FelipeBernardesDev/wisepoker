@@ -1,4 +1,7 @@
-import { NotFoundError } from '@/errors/index.js'
+import { FREE_CHIPS_COOLDOWN_MS, FREE_CHIPS_AMOUNT } from '@/config/wallet.js'
+import { HOUSE_EMAIL } from '@/config/system.js'
+import { randomUUID } from 'node:crypto'
+import { ConflictError, ForbiddenError, NotFoundError } from '@/errors/index.js'
 import { GetLedgerQuery } from '@/http/schemas/wallet/index.js'
 import { prisma } from '@/lib/prisma.js'
 
@@ -60,7 +63,7 @@ export async function getWalletLedgerService(userId: string, query: GetLedgerQue
             where,
             take: limit,
             skip: (page - 1) * limit,
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            orderBy: { createdAt: 'desc' },
             select: {
                 publicId: true,
                 amount: true,
@@ -98,4 +101,110 @@ export async function getWalletLedgerService(userId: string, query: GetLedgerQue
             totalPages: Math.ceil(total / limit),
         },
     }
+}
+
+export async function claimFreeChipsService(userId: string) {
+    const now = new Date()
+    const nextClaimAt = new Date(now.getTime() + FREE_CHIPS_COOLDOWN_MS)
+    const claimTxId = randomUUID()
+
+    return await prisma.$transaction(async (tx) => {
+        const { count } = await tx.user.updateMany({
+            where: {
+                publicId: userId,
+                status: 'ACTIVE',
+                OR: [{ freeChipsNextClaimAt: null }, { freeChipsNextClaimAt: { lte: now } }],
+            },
+            data: {
+                freeChipsLastClaimAt: now,
+                freeChipsNextClaimAt: nextClaimAt,
+            },
+        })
+
+        if (count === 0) {
+            const user = await tx.user.findUnique({ where: { publicId: userId } })
+
+            if (!user) {
+                throw new NotFoundError('User not found')
+            }
+
+            if (user.status !== 'ACTIVE') {
+                throw new ForbiddenError('Account is not active')
+            }
+
+            throw new ConflictError(
+                `Free chips available again at ${user.freeChipsNextClaimAt?.toISOString()}`,
+            )
+        }
+
+        const user = await tx.user.findUnique({
+            where: { publicId: userId },
+            select: { id: true },
+        })
+
+        if (!user) {
+            throw new NotFoundError('User not found')
+        }
+
+        const userAccount = await tx.account.findUnique({
+            where: {
+                userId_type_currency: {
+                    userId: user.id,
+                    type: 'MAIN',
+                    currency: 'PLAY',
+                },
+            },
+        })
+
+        if (!userAccount) {
+            throw new NotFoundError('Player account not found')
+        }
+
+        const houseReserve = await tx.account.findFirst({
+            where: {
+                type: 'HOUSE_RESERVE',
+                currency: 'PLAY',
+                user: { email: HOUSE_EMAIL },
+            },
+        })
+
+        if (!houseReserve) {
+            throw new NotFoundError('House reserve account not found')
+        }
+
+        await tx.account.update({
+            where: { id: houseReserve.id },
+            data: { balance: { decrement: FREE_CHIPS_AMOUNT } },
+        })
+
+        const updatedAccount = await tx.account.update({
+            where: { id: userAccount.id },
+            data: { balance: { increment: FREE_CHIPS_AMOUNT } },
+        })
+
+        await tx.ledgerEntry.createMany({
+            data: [
+                {
+                    accountId: houseReserve.id,
+                    transactionId: claimTxId,
+                    amount: -FREE_CHIPS_AMOUNT,
+                    type: 'FREE_CLAIM',
+                    referenceId: 'FREE_CHIPS_REFILL',
+                },
+                {
+                    accountId: userAccount.id,
+                    transactionId: claimTxId,
+                    amount: FREE_CHIPS_AMOUNT,
+                    type: 'FREE_CLAIM',
+                    referenceId: 'FREE_CHIPS_REFILL',
+                },
+            ],
+        })
+
+        return {
+            amount: FREE_CHIPS_AMOUNT,
+            balance: updatedAccount.balance,
+            nextClaimAt,
+        }
+    })
 }

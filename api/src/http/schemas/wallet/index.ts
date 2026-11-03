@@ -64,6 +64,13 @@ export const getLedgerResponseSchema = z.object({
     }),
 })
 
+export const claimResponseSchema = z.object({
+    amount: z.string(),
+    balance: z.string(),
+    nextClaimAt: z.iso.datetime(),
+})
+
 export type LedgerEntryResponse = z.infer<typeof ledgerEntrySchema>
 export type GetLedgerQuery = z.infer<typeof getLedgerQuerySchema>
 export type GetLedgerResponse = z.infer<typeof getLedgerResponseSchema>
+export type ClaimResponse = z.infer<typeof claimResponseSchema>

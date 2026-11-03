@@ -1,5 +1,9 @@
 import { GetLedgerQuery } from '@/http/schemas/wallet/index.js'
-import { getWalletLedgerService, getWalletService } from '@/services/wallet/index.js'
+import {
+    claimFreeChipsService,
+    getWalletLedgerService,
+    getWalletService,
+} from '@/services/wallet/index.js'
 import { FastifyReply, FastifyRequest } from 'fastify'
 
 export async function getWalletController(request: FastifyRequest, reply: FastifyReply) {
@@ -21,3 +25,14 @@ export async function getWalletLedgerController(
     return reply.status(200).send({ ledger })
 }
 
+export async function claimFreeChipsController(request: FastifyRequest, reply: FastifyReply) {
+    const { id: userId } = request.server.getCurrentUser(request)
+
+    const result = await claimFreeChipsService(userId)
+
+    return reply.status(200).send({
+        amount: result.amount.toString(),
+        balance: result.balance.toString(),
+        nextClaimAt: result.nextClaimAt.toISOString(),
+    })
+}
