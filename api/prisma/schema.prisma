@@ -40,6 +40,12 @@ enum TxType {
   FREE_CLAIM
 }
 
+enum TableStatus {
+  WAITING
+  ACTIVE
+  CLOSED
+}
+
 model User {
   id            Int        @id @default(autoincrement())
   publicId      String     @unique @default(uuid()) @map("public_id") @db.Uuid
@@ -122,4 +128,22 @@ model LedgerEntry {
   @@unique([transactionId, accountId])
   @@index([accountId])
   @@map("ledger_entries")
+}
+
+model Table {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid()) @map("public_id") @db.Uuid
+
+  name     String
+  status   TableStatus @default(WAITING)
+  currency Currency    @default(PLAY)
+
+  // Configuração da mesa: { smallBlind, bigBlind, minBuyIn, maxBuyIn, maxPlayers }
+  config Json
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("tables")
 }
