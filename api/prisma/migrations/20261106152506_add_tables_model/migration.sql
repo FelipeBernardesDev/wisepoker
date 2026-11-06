@@ -20,3 +20,4 @@ CREATE UNIQUE INDEX "tables_public_id_key" ON "tables"("public_id");
 
 -- CreateIndex
 CREATE INDEX "tables_status_idx" ON "tables"("status");
+
