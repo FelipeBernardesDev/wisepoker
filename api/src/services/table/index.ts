@@ -1,3 +1,4 @@
+import { NotFoundError } from '@/errors/index.js'
 import { CreateTableInput, ListTablesQuery } from '@/http/schemas/table/index.js'
 import { prisma } from '@/lib/prisma.js'
 import { PokerEngine } from '@pokertools/engine'
@@ -34,6 +35,35 @@ export async function createTableService(data: CreateTableInput) {
             updatedAt: true,
         },
     })
+
+    return {
+        id: table.publicId,
+        name: table.name,
+        status: table.status,
+        currency: table.currency,
+        config: table.config as CreateTableInput['config'],
+        createdAt: table.createdAt,
+        updatedAt: table.updatedAt,
+    }
+}
+
+export async function getTableService(id: string) {
+    const table = await prisma.table.findUnique({
+        where: { publicId: id },
+        select: {
+            publicId: true,
+            name: true,
+            status: true,
+            currency: true,
+            config: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    })
+
+    if (!table) {
+        throw new NotFoundError('Table not found')
+    }
 
     return {
         id: table.publicId,

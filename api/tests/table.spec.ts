@@ -1,11 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { createTableService, listTablesService } from '../src/services/table/index.js'
+import {
+    createTableService,
+    getTableService,
+    listTablesService,
+} from '../src/services/table/index.js'
 import { prisma } from '../src/lib/prisma.js'
+import { NotFoundError } from '../src/errors/index.js'
 
 vi.mock('../src/lib/prisma.js', () => ({
     prisma: {
         table: {
             create: vi.fn(),
+            findUnique: vi.fn(),
             count: vi.fn(),
             findMany: vi.fn(),
         },
@@ -100,6 +106,67 @@ describe('Table Service', () => {
 
             await expect(createTableService(invalidConfig as any)).rejects.toThrow()
             expect(prisma.table.create).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('getTableService', () => {
+        it('should throw NotFoundError if table does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(null)
+
+            await expect(getTableService('non-existent-id')).rejects.toThrow(NotFoundError)
+        })
+
+        it('should return table details if found', async () => {
+            const createdAt = new Date('2026-11-12T18:00:00Z')
+            const updatedAt = new Date('2026-11-12T18:00:00Z')
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce({
+                id: 1,
+                publicId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                name: 'NLH 10/20 Micro',
+                status: 'WAITING',
+                currency: 'PLAY',
+                config: {
+                    smallBlind: 10,
+                    bigBlind: 20,
+                    minBuyIn: 400,
+                    maxBuyIn: 2000,
+                    maxPlayers: 6,
+                },
+                createdAt,
+                updatedAt,
+            } as any)
+
+            const result = await getTableService('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+
+            expect(result).toEqual({
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                name: 'NLH 10/20 Micro',
+                status: 'WAITING',
+                currency: 'PLAY',
+                config: {
+                    smallBlind: 10,
+                    bigBlind: 20,
+                    minBuyIn: 400,
+                    maxBuyIn: 2000,
+                    maxPlayers: 6,
+                },
+                createdAt,
+                updatedAt,
+            })
+
+            expect(prisma.table.findUnique).toHaveBeenCalledWith({
+                where: { publicId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+                select: {
+                    publicId: true,
+                    name: true,
+                    status: true,
+                    currency: true,
+                    config: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+            })
         })
     })
 

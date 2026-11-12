@@ -1,5 +1,6 @@
 import {
     createTableController,
+    getTableController,
     listTablesController,
 } from '@/http/controllers/table/index.js'
 import { authorize } from '@/http/hooks/authorize.js'
@@ -7,6 +8,8 @@ import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import {
     createTableResponseSchema,
     createTableSchema,
+    getTableParamsSchema,
+    getTableResponseSchema,
     listTablesQuerySchema,
     listTablesResponseSchema,
 } from '@/http/schemas/table/index.js'
@@ -86,5 +89,44 @@ export async function listTablesRoute(app: FastifyInstance) {
             },
         },
         listTablesController,
+    )
+}
+
+export async function getTableRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().get(
+        '/:id',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('read', 'Table')],
+            config: {
+                rateLimit: {
+                    max: 60,
+                    timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
+                },
+            },
+            schema: {
+                tags: ['Tables'],
+                summary: 'Get poker table by ID',
+                description:
+                    'Retrieve detailed information and configuration of a poker table by its public ID.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                params: getTableParamsSchema,
+                response: {
+                    200: getTableResponseSchema,
+                    400: errorResponseSchema,
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        getTableController,
     )
 }

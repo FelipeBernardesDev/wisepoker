@@ -1,5 +1,13 @@
-import { CreateTableInput, ListTablesQuery } from '@/http/schemas/table/index.js'
-import { createTableService, listTablesService } from '@/services/table/index.js'
+import {
+    CreateTableInput,
+    GetTableParams,
+    ListTablesQuery,
+} from '@/http/schemas/table/index.js'
+import {
+    createTableService,
+    getTableService,
+    listTablesService,
+} from '@/services/table/index.js'
 import { FastifyReply, FastifyRequest } from 'fastify'
 
 export async function createTableController(
@@ -9,6 +17,15 @@ export async function createTableController(
     const table = await createTableService(request.body)
 
     return reply.status(201).send({ table })
+}
+
+export async function getTableController(
+    request: FastifyRequest<{ Params: GetTableParams }>,
+    reply: FastifyReply,
+) {
+    const table = await getTableService(request.params.id)
+
+    return reply.status(200).send({ table })
 }
 
 export async function listTablesController(

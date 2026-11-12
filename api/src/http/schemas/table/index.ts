@@ -65,6 +65,14 @@ export const createTableResponseSchema = z.object({
     table: tableResponseSchema,
 })
 
+export const getTableParamsSchema = z.object({
+    id: z.uuid('Invalid table ID format'),
+})
+
+export const getTableResponseSchema = z.object({
+    table: tableResponseSchema,
+})
+
 export const listTablesQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -86,5 +94,7 @@ export type CreateTableInput = z.infer<typeof createTableSchema>
 export type TableConfig = z.infer<typeof tableConfigSchema>
 export type TableResponse = z.infer<typeof tableResponseSchema>
 export type CreateTableResponse = z.infer<typeof createTableResponseSchema>
+export type GetTableParams = z.infer<typeof getTableParamsSchema>
+export type GetTableResponse = z.infer<typeof getTableResponseSchema>
 export type ListTablesQuery = z.infer<typeof listTablesQuerySchema>
 export type ListTablesResponse = z.infer<typeof listTablesResponseSchema>
