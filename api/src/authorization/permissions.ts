@@ -19,5 +19,7 @@ export const permissions: Record<Role, PermissionsByRole> = {
         can('deposit', 'Wallet', { userId: user.id })
         can('withdraw', 'Wallet', { userId: user.id })
         can('transfer', 'Wallet', { userId: user.id })
+
+        can(['read', 'get'], 'Table')
     },
 }

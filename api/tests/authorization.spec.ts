@@ -26,6 +26,8 @@ describe('Authorization (CASL)', () => {
             expect(ability.can('manage', 'User')).toBe(true)
             expect(ability.can('manage', 'Wallet')).toBe(true)
             expect(ability.can('delete', 'Wallet')).toBe(true)
+            expect(ability.can('create', 'Table')).toBe(true)
+            expect(ability.can('manage', 'Table')).toBe(true)
         })
     })
 
@@ -79,6 +81,15 @@ describe('Authorization (CASL)', () => {
             expect(ability.can('withdraw', otherWallet)).toBe(false)
             expect(ability.can('transfer', otherWallet)).toBe(false)
             expect(ability.can('delete', ownWallet)).toBe(false)
+        })
+
+        it('should only be able to read tables, not create', () => {
+            expect(ability.can('read', 'Table')).toBe(true)
+            expect(ability.can('get', 'Table')).toBe(true)
+            expect(ability.can('create', 'Table')).toBe(false)
+            expect(ability.can('update', 'Table')).toBe(false)
+            expect(ability.can('delete', 'Table')).toBe(false)
+            expect(ability.can('manage', 'Table')).toBe(false)
         })
     })
 })

@@ -3,11 +3,13 @@ import { User } from './models/user.js'
 import { z } from 'zod'
 import { userSubject } from './subjects/user.js'
 import { walletSubject } from './subjects/wallet.js'
+import { tableSubject } from './subjects/table.js'
 import { permissions } from './permissions.js'
 
 const appAbilitiesSchema = z.union([
     userSubject,
     walletSubject,
+    tableSubject,
     z.tuple([z.literal('manage'), z.literal('all')]),
 ])
 
