@@ -1,7 +1,8 @@
-import { NotFoundError } from '@/errors/index.js'
-import { CreateTableInput, ListTablesQuery } from '@/http/schemas/table/index.js'
+import { BadRequestError, InsufficientFundsError, NotFoundError } from '@/errors/index.js'
+import { CreateTableInput, ListTablesQuery, TableConfig } from '@/http/schemas/table/index.js'
 import { prisma } from '@/lib/prisma.js'
 import { PokerEngine } from '@pokertools/engine'
+import { randomUUID } from 'node:crypto'
 
 export async function createTableService(data: CreateTableInput) {
     const { name, currency, config } = data
@@ -120,4 +121,123 @@ export async function listTablesService(query: ListTablesQuery) {
             totalPages: Math.ceil(total / limit),
         },
     }
+}
+
+export interface BuyInInput {
+    tableId: string
+    userId: string
+    amount: number
+}
+
+export async function buyInService({ tableId, userId, amount }: BuyInInput) {
+    const table = await prisma.table.findUnique({
+        where: { publicId: tableId },
+        select: {
+            publicId: true,
+            status: true,
+            currency: true,
+            config: true,
+        },
+    })
+
+    if (!table) {
+        throw new NotFoundError('Table not found')
+    }
+
+    if (table.status === 'CLOSED') {
+        throw new BadRequestError('Table is closed')
+    }
+
+    const config = table.config as unknown as TableConfig
+
+    if (amount < config.minBuyIn || amount > config.maxBuyIn) {
+        throw new BadRequestError(
+            `Buy-in amount must be between ${config.minBuyIn} and ${config.maxBuyIn}`,
+        )
+    }
+
+    return await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+            where: { publicId: userId },
+            select: { id: true },
+        })
+
+        if (!user) {
+            throw new NotFoundError('User not found')
+        }
+
+        const mainAccount = await tx.account.findUnique({
+            where: {
+                userId_type_currency: {
+                    userId: user.id,
+                    type: 'MAIN',
+                    currency: table.currency,
+                },
+            },
+        })
+
+        if (!mainAccount) {
+            throw new NotFoundError('Main account not found')
+        }
+
+        const amountBigInt = BigInt(amount)
+
+        if (mainAccount.balance < amountBigInt) {
+            throw new InsufficientFundsError('Insufficient funds for buy-in')
+        }
+
+        const inPlayAccount = await tx.account.findUnique({
+            where: {
+                userId_type_currency: {
+                    userId: user.id,
+                    type: 'IN_PLAY',
+                    currency: table.currency,
+                },
+            },
+        })
+
+        if (!inPlayAccount) {
+            throw new NotFoundError('In-play account not found')
+        }
+
+        const updatedMainAccount = await tx.account.update({
+            where: { id: mainAccount.id },
+            data: { balance: { decrement: amountBigInt } },
+        })
+
+        const updatedInPlayAccount = await tx.account.update({
+            where: { id: inPlayAccount.id },
+            data: { balance: { increment: amountBigInt } },
+        })
+
+        const transactionId = randomUUID()
+
+        await tx.ledgerEntry.createMany({
+            data: [
+                {
+                    accountId: mainAccount.id,
+                    transactionId,
+                    amount: -amountBigInt,
+                    type: 'BUY_IN',
+                    referenceId: table.publicId,
+                },
+                {
+                    accountId: inPlayAccount.id,
+                    transactionId,
+                    amount: amountBigInt,
+                    type: 'BUY_IN',
+                    referenceId: table.publicId,
+                },
+            ],
+        })
+
+        return {
+            transactionId,
+            tableId: table.publicId,
+            amount: amountBigInt,
+            currency: table.currency,
+            mainBalance: updatedMainAccount.balance,
+            inPlayBalance: updatedInPlayAccount.balance,
+        }
+    })
 }

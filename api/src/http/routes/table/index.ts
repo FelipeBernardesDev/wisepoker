@@ -1,4 +1,5 @@
 import {
+    buyInController,
     createTableController,
     getTableController,
     listTablesController,
@@ -6,6 +7,9 @@ import {
 import { authorize } from '@/http/hooks/authorize.js'
 import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
 import {
+    buyInBodySchema,
+    buyInParamsSchema,
+    buyInResponseSchema,
     createTableResponseSchema,
     createTableSchema,
     getTableParamsSchema,
@@ -128,5 +132,45 @@ export async function getTableRoute(app: FastifyInstance) {
             },
         },
         getTableController,
+    )
+}
+
+export async function buyInRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().post(
+        '/:id/buy-in',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('transfer', 'Wallet')],
+            config: {
+                rateLimit: {
+                    max: 20,
+                    timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
+                },
+            },
+            schema: {
+                tags: ['Tables'],
+                summary: 'Buy in to a poker table',
+                description:
+                    'Transfers chips from player MAIN account to IN_PLAY account for joining or adding chips to a poker table.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                params: buyInParamsSchema,
+                body: buyInBodySchema,
+                response: {
+                    200: buyInResponseSchema,
+                    400: errorResponseSchema,
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        buyInController,
     )
 }

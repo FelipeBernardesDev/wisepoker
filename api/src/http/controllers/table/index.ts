@@ -1,9 +1,12 @@
 import {
+    BuyInBody,
+    BuyInParams,
     CreateTableInput,
     GetTableParams,
     ListTablesQuery,
 } from '@/http/schemas/table/index.js'
 import {
+    buyInService,
     createTableService,
     getTableService,
     listTablesService,
@@ -35,4 +38,33 @@ export async function listTablesController(
     const result = await listTablesService(request.query)
 
     return reply.status(200).send(result)
+}
+
+export async function buyInController(
+    request: FastifyRequest<{
+        Params: BuyInParams
+        Body: BuyInBody
+    }>,
+    reply: FastifyReply,
+) {
+    const { id: userId } = request.server.getCurrentUser(request)
+    const { id: tableId } = request.params
+    const { amount } = request.body
+
+    const result = await buyInService({
+        tableId,
+        userId,
+        amount,
+    })
+
+    return reply.status(200).send({
+        buyIn: {
+            transactionId: result.transactionId,
+            tableId: result.tableId,
+            amount: Number(result.amount),
+            currency: result.currency,
+            mainBalance: Number(result.mainBalance),
+            inPlayBalance: Number(result.inPlayBalance),
+        },
+    })
 }

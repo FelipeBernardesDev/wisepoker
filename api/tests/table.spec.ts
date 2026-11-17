@@ -1,14 +1,25 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
+    buyInService,
     createTableService,
     getTableService,
     listTablesService,
 } from '../src/services/table/index.js'
 import { prisma } from '../src/lib/prisma.js'
-import { NotFoundError } from '../src/errors/index.js'
+import { BadRequestError, InsufficientFundsError, NotFoundError } from '../src/errors/index.js'
 
 vi.mock('../src/lib/prisma.js', () => ({
     prisma: {
+        user: {
+            findUnique: vi.fn(),
+        },
+        account: {
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
+        ledgerEntry: {
+            createMany: vi.fn(),
+        },
         table: {
             create: vi.fn(),
             findUnique: vi.fn(),
@@ -227,6 +238,212 @@ describe('Table Service', () => {
                     totalPages: 1,
                 },
             })
+        })
+    })
+
+    describe('buyInService', () => {
+        const tableId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+
+        const baseTable = {
+            id: 1,
+            publicId: tableId,
+            name: 'NLH 10/20 Micro',
+            status: 'WAITING',
+            currency: 'PLAY',
+            config: {
+                smallBlind: 10,
+                bigBlind: 20,
+                minBuyIn: 400,
+                maxBuyIn: 2000,
+                maxPlayers: 6,
+            },
+        }
+
+        it('should throw NotFoundError if table does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(null)
+
+            await expect(buyInService({ tableId, userId, amount: 500 })).rejects.toThrow(
+                NotFoundError,
+            )
+        })
+
+        it('should throw BadRequestError if table is CLOSED', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce({
+                ...baseTable,
+                status: 'CLOSED',
+            } as any)
+
+            await expect(buyInService({ tableId, userId, amount: 500 })).rejects.toThrow(
+                new BadRequestError('Table is closed'),
+            )
+        })
+
+        it('should throw BadRequestError if amount is less than minBuyIn', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(buyInService({ tableId, userId, amount: 300 })).rejects.toThrow(
+                new BadRequestError('Buy-in amount must be between 400 and 2000'),
+            )
+        })
+
+        it('should throw BadRequestError if amount is greater than maxBuyIn', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(buyInService({ tableId, userId, amount: 2500 })).rejects.toThrow(
+                new BadRequestError('Buy-in amount must be between 400 and 2000'),
+            )
+        })
+
+        it('should throw NotFoundError if user does not exist in transaction', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce(null),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await expect(buyInService({ tableId, userId, amount: 1000 })).rejects.toThrow(
+                new NotFoundError('User not found'),
+            )
+        })
+
+        it('should throw NotFoundError if MAIN account does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi.fn().mockResolvedValueOnce(null),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await expect(buyInService({ tableId, userId, amount: 1000 })).rejects.toThrow(
+                new NotFoundError('Main account not found'),
+            )
+        })
+
+        it('should throw InsufficientFundsError if MAIN account has insufficient balance', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi.fn().mockResolvedValueOnce({
+                        id: 10,
+                        balance: 500n,
+                    }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await expect(buyInService({ tableId, userId, amount: 1000 })).rejects.toThrow(
+                new InsufficientFundsError('Insufficient funds for buy-in'),
+            )
+        })
+
+        it('should throw NotFoundError if IN_PLAY account does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 10, balance: 2000n }) // MAIN
+                        .mockResolvedValueOnce(null), // IN_PLAY
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await expect(buyInService({ tableId, userId, amount: 1000 })).rejects.toThrow(
+                new NotFoundError('In-play account not found'),
+            )
+        })
+
+        it('should successfully buy-in: decrement MAIN, increment IN_PLAY, and create 2 balanced ledger entries', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 10, balance: 5000n }) // MAIN
+                        .mockResolvedValueOnce({ id: 20, balance: 0n }), // IN_PLAY
+                    update: vi.fn().mockImplementation(({ where, data }) => {
+                        if (where.id === 10) {
+                            return Promise.resolve({ id: 10, balance: 4000n })
+                        }
+                        if (where.id === 20) {
+                            return Promise.resolve({ id: 20, balance: 1000n })
+                        }
+                    }),
+                },
+                ledgerEntry: {
+                    createMany: vi.fn().mockResolvedValueOnce({ count: 2 }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            const result = await buyInService({ tableId, userId, amount: 1000 })
+
+            expect(result.tableId).toBe(tableId)
+            expect(result.amount).toBe(1000n)
+            expect(result.currency).toBe('PLAY')
+            expect(result.mainBalance).toBe(4000n)
+            expect(result.inPlayBalance).toBe(1000n)
+            expect(result.transactionId).toBeDefined()
+
+            // Verify account updates
+            expect(mockTx.account.update).toHaveBeenCalledWith({
+                where: { id: 10 },
+                data: { balance: { decrement: 1000n } },
+            })
+            expect(mockTx.account.update).toHaveBeenCalledWith({
+                where: { id: 20 },
+                data: { balance: { increment: 1000n } },
+            })
+
+            // Verify ledger entries
+            expect(mockTx.ledgerEntry.createMany).toHaveBeenCalledWith({
+                data: [
+                    {
+                        accountId: 10,
+                        transactionId: result.transactionId,
+                        amount: -1000n,
+                        type: 'BUY_IN',
+                        referenceId: tableId,
+                    },
+                    {
+                        accountId: 20,
+                        transactionId: result.transactionId,
+                        amount: 1000n,
+                        type: 'BUY_IN',
+                        referenceId: tableId,
+                    },
+                ],
+            })
+
+            // Verify double-entry sum is 0
+            const entries = mockTx.ledgerEntry.createMany.mock.calls[0][0].data
+            expect(entries[0].amount + entries[1].amount).toBe(0n)
+            expect(entries[0].transactionId).toBe(entries[1].transactionId)
+            expect(entries[0].type).toBe('BUY_IN')
+            expect(entries[1].type).toBe('BUY_IN')
+            expect(entries[0].referenceId).toBe(tableId)
+            expect(entries[1].referenceId).toBe(tableId)
         })
     })
 })

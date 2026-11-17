@@ -90,6 +90,25 @@ export const listTablesResponseSchema = z.object({
     }),
 })
 
+export const buyInParamsSchema = z.object({
+    id: z.uuid('Invalid table ID format'),
+})
+
+export const buyInBodySchema = z.object({
+    amount: z.number().int().positive('Buy-in amount must be a positive integer'),
+})
+
+export const buyInResponseSchema = z.object({
+    buyIn: z.object({
+        transactionId: z.uuid(),
+        tableId: z.uuid(),
+        amount: z.number(),
+        currency: tableCurrencySchema,
+        mainBalance: z.number(),
+        inPlayBalance: z.number(),
+    }),
+})
+
 export type CreateTableInput = z.infer<typeof createTableSchema>
 export type TableConfig = z.infer<typeof tableConfigSchema>
 export type TableResponse = z.infer<typeof tableResponseSchema>
@@ -98,3 +117,6 @@ export type GetTableParams = z.infer<typeof getTableParamsSchema>
 export type GetTableResponse = z.infer<typeof getTableResponseSchema>
 export type ListTablesQuery = z.infer<typeof listTablesQuerySchema>
 export type ListTablesResponse = z.infer<typeof listTablesResponseSchema>
+export type BuyInParams = z.infer<typeof buyInParamsSchema>
+export type BuyInBody = z.infer<typeof buyInBodySchema>
+export type BuyInResponse = z.infer<typeof buyInResponseSchema>

@@ -3,7 +3,12 @@ import { healthRoute } from './health/index.js'
 import { loginRoute, logoutRoute, refreshTokenRoute, registerRoute } from './auth/index.js'
 import { deleteUserRoute, getMeRoute, updateUserRoute } from './user/index.js'
 import { claimFreeChipsRoute, getWalletLedgerRoute, getWalletRoute } from './wallet/index.js'
-import { createTableRoute, getTableRoute, listTablesRoute } from './table/index.js'
+import {
+    buyInRoute,
+    createTableRoute,
+    getTableRoute,
+    listTablesRoute,
+} from './table/index.js'
 
 export async function routes(app: FastifyInstance) {
     //Health Check
@@ -25,4 +30,5 @@ export async function routes(app: FastifyInstance) {
     await app.register(createTableRoute, { prefix: '/tables' })
     await app.register(listTablesRoute, { prefix: '/tables' })
     await app.register(getTableRoute, { prefix: '/tables' })
+    await app.register(buyInRoute, { prefix: '/tables' })
 }
