@@ -96,10 +96,28 @@ export const buyInParamsSchema = z.object({
 
 export const buyInBodySchema = z.object({
     amount: z.number().int().positive('Buy-in amount must be a positive integer'),
+    seat: z
+        .number()
+        .int('Seat must be an integer')
+        .min(0, 'Seat must be non-negative')
+        .max(9, 'Seat cannot exceed 9')
+        .optional(),
 })
 
 export const buyInResponseSchema = z.object({
     buyIn: z.object({
+        transactionId: z.uuid(),
+        tableId: z.uuid(),
+        seat: z.number().int(),
+        amount: z.number(),
+        currency: tableCurrencySchema,
+        mainBalance: z.number(),
+        inPlayBalance: z.number(),
+    }),
+})
+
+export const leaveTableResponseSchema = z.object({
+    cashOut: z.object({
         transactionId: z.uuid(),
         tableId: z.uuid(),
         amount: z.number(),
@@ -107,6 +125,16 @@ export const buyInResponseSchema = z.object({
         mainBalance: z.number(),
         inPlayBalance: z.number(),
     }),
+})
+
+export const tableStateResponseSchema = z.object({
+    table: z.object({
+        id: z.uuid(),
+        name: z.string(),
+        status: tableStatusSchema,
+        currency: tableCurrencySchema,
+    }),
+    state: z.record(z.string(), z.any()),
 })
 
 export type CreateTableInput = z.infer<typeof createTableSchema>
@@ -120,3 +148,5 @@ export type ListTablesResponse = z.infer<typeof listTablesResponseSchema>
 export type BuyInParams = z.infer<typeof buyInParamsSchema>
 export type BuyInBody = z.infer<typeof buyInBodySchema>
 export type BuyInResponse = z.infer<typeof buyInResponseSchema>
+export type LeaveTableResponse = z.infer<typeof leaveTableResponseSchema>
+export type TableStateResponse = z.infer<typeof tableStateResponseSchema>

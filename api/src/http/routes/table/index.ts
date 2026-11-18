@@ -2,6 +2,8 @@ import {
     buyInController,
     createTableController,
     getTableController,
+    getTableStateController,
+    leaveTableController,
     listTablesController,
 } from '@/http/controllers/table/index.js'
 import { authorize } from '@/http/hooks/authorize.js'
@@ -14,8 +16,10 @@ import {
     createTableSchema,
     getTableParamsSchema,
     getTableResponseSchema,
+    leaveTableResponseSchema,
     listTablesQuerySchema,
     listTablesResponseSchema,
+    tableStateResponseSchema,
 } from '@/http/schemas/table/index.js'
 import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
@@ -172,5 +176,83 @@ export async function buyInRoute(app: FastifyInstance) {
             },
         },
         buyInController,
+    )
+}
+
+export async function leaveTableRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().post(
+        '/:id/leave',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('transfer', 'Wallet')],
+            config: {
+                rateLimit: {
+                    max: 20,
+                    timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
+                },
+            },
+            schema: {
+                tags: ['Tables'],
+                summary: 'Leave a poker table and cash out',
+                description:
+                    'Removes the player from the poker table seat and transfers remaining in-play chips back to the MAIN wallet account.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                params: getTableParamsSchema,
+                response: {
+                    200: leaveTableResponseSchema,
+                    400: errorResponseSchema,
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        leaveTableController,
+    )
+}
+
+export async function getTableStateRoute(app: FastifyInstance) {
+    app.withTypeProvider<ZodTypeProvider>().get(
+        '/:id/state',
+        {
+            onRequest: [app.authenticate],
+            preHandler: [authorize('read', 'Table')],
+            config: {
+                rateLimit: {
+                    max: 60,
+                    timeWindow: '1 minute',
+                    keyGenerator: (request) => request.user.sub,
+                },
+            },
+            schema: {
+                tags: ['Tables'],
+                summary: 'Get live poker table state',
+                description:
+                    'Retrieves real-time poker game state including seated players, stacks, pot, community cards, and visible player cards.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                params: getTableParamsSchema,
+                response: {
+                    200: tableStateResponseSchema,
+                    400: errorResponseSchema,
+                    401: errorResponseSchema,
+                    403: errorResponseSchema,
+                    404: errorResponseSchema,
+                    429: errorResponseSchema,
+                    500: errorResponseSchema,
+                },
+            },
+        },
+        getTableStateController,
     )
 }

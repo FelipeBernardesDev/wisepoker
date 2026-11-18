@@ -3,10 +3,18 @@ import {
     buyInService,
     createTableService,
     getTableService,
+    getTableStateService,
+    leaveTableService,
     listTablesService,
 } from '../src/services/table/index.js'
 import { prisma } from '../src/lib/prisma.js'
-import { BadRequestError, InsufficientFundsError, NotFoundError } from '../src/errors/index.js'
+import {
+    BadRequestError,
+    ConflictError,
+    InsufficientFundsError,
+    NotFoundError,
+} from '../src/errors/index.js'
+import { tableManager } from '../src/game/table-manager.js'
 
 vi.mock('../src/lib/prisma.js', () => ({
     prisma: {
@@ -33,6 +41,7 @@ vi.mock('../src/lib/prisma.js', () => ({
 describe('Table Service', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        tableManager.clear()
     })
 
     describe('createTableService', () => {
@@ -375,7 +384,7 @@ describe('Table Service', () => {
 
             const mockTx = {
                 user: {
-                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1, userName: 'player1' }),
                 },
                 account: {
                     findUnique: vi
@@ -400,6 +409,7 @@ describe('Table Service', () => {
             const result = await buyInService({ tableId, userId, amount: 1000 })
 
             expect(result.tableId).toBe(tableId)
+            expect(result.seat).toBe(0) // Primeiro assento livre
             expect(result.amount).toBe(1000n)
             expect(result.currency).toBe('PLAY')
             expect(result.mainBalance).toBe(4000n)
@@ -415,6 +425,12 @@ describe('Table Service', () => {
                 where: { id: 20 },
                 data: { balance: { increment: 1000n } },
             })
+
+            // Verify player was seated in engine
+            expect(tableManager.isPlayerSeated(tableId, userId)).toBe(true)
+            const seatedPlayer = tableManager.getSeatedPlayer(tableId, userId)
+            expect(seatedPlayer?.seat).toBe(0)
+            expect(seatedPlayer?.stack).toBe(1000)
 
             // Verify ledger entries
             expect(mockTx.ledgerEntry.createMany).toHaveBeenCalledWith({
@@ -444,6 +460,228 @@ describe('Table Service', () => {
             expect(entries[1].type).toBe('BUY_IN')
             expect(entries[0].referenceId).toBe(tableId)
             expect(entries[1].referenceId).toBe(tableId)
+        })
+
+        it('should throw BadRequestError if seat is out of table bounds', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(buyInService({ tableId, userId, amount: 1000, seat: 6 })).rejects.toThrow(
+                new BadRequestError('Seat must be between 0 and 5'),
+            )
+        })
+
+        it('should allow player to sit at a specific valid seat', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1, userName: 'player1' }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 10, balance: 5000n })
+                        .mockResolvedValueOnce({ id: 20, balance: 0n }),
+                    update: vi.fn().mockResolvedValue({ id: 10, balance: 4000n }),
+                },
+                ledgerEntry: {
+                    createMany: vi.fn().mockResolvedValueOnce({ count: 2 }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            const result = await buyInService({ tableId, userId, amount: 1000, seat: 3 })
+
+            expect(result.seat).toBe(3)
+            expect(tableManager.getSeatedPlayer(tableId, userId)?.seat).toBe(3)
+        })
+
+        it('should throw ConflictError if seat is already occupied', async () => {
+            tableManager.sitPlayer(
+                tableId,
+                0,
+                { id: 'another-user', name: 'Other' },
+                1000,
+                baseTable.config as any,
+            )
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(buyInService({ tableId, userId, amount: 1000, seat: 0 })).rejects.toThrow(
+                new ConflictError('Seat 0 is already occupied'),
+            )
+        })
+
+        it('should throw ConflictError if player is already seated at the table', async () => {
+            tableManager.sitPlayer(
+                tableId,
+                0,
+                { id: userId, name: 'Player1' },
+                1000,
+                baseTable.config as any,
+            )
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(buyInService({ tableId, userId, amount: 1000 })).rejects.toThrow(
+                new ConflictError('Player is already seated at this table'),
+            )
+        })
+    })
+
+    describe('leaveTableService', () => {
+        const tableId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+
+        const baseTable = {
+            id: 1,
+            publicId: tableId,
+            name: 'NLH 10/20 Micro',
+            status: 'WAITING',
+            currency: 'PLAY',
+            config: {
+                smallBlind: 10,
+                bigBlind: 20,
+                minBuyIn: 400,
+                maxBuyIn: 2000,
+                maxPlayers: 6,
+            },
+        }
+
+        it('should throw NotFoundError if table does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(null)
+
+            await expect(leaveTableService({ tableId, userId })).rejects.toThrow(NotFoundError)
+        })
+
+        it('should throw BadRequestError if player is not seated at table', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            await expect(leaveTableService({ tableId, userId })).rejects.toThrow(
+                new BadRequestError('Player is not seated at this table'),
+            )
+        })
+
+        it('should successfully leave table, stand player in engine, and cash out to MAIN account', async () => {
+            // Senta o jogador na engine
+            tableManager.sitPlayer(
+                tableId,
+                2,
+                { id: userId, name: 'Player1' },
+                1500,
+                baseTable.config as any,
+            )
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 20, balance: 1500n }) // IN_PLAY
+                        .mockResolvedValueOnce({ id: 10, balance: 3000n }), // MAIN
+                    update: vi.fn().mockImplementation(({ where, data }) => {
+                        if (where.id === 20) {
+                            return Promise.resolve({ id: 20, balance: 0n })
+                        }
+                        if (where.id === 10) {
+                            return Promise.resolve({ id: 10, balance: 4500n })
+                        }
+                    }),
+                },
+                ledgerEntry: {
+                    createMany: vi.fn().mockResolvedValueOnce({ count: 2 }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            const result = await leaveTableService({ tableId, userId })
+
+            expect(result.amount).toBe(1500n)
+            expect(result.mainBalance).toBe(4500n)
+            expect(result.inPlayBalance).toBe(0n)
+
+            // Player should no longer be seated
+            expect(tableManager.isPlayerSeated(tableId, userId)).toBe(false)
+
+            // Verify accounts updated in reverse
+            expect(mockTx.account.update).toHaveBeenCalledWith({
+                where: { id: 20 },
+                data: { balance: { decrement: 1500n } },
+            })
+            expect(mockTx.account.update).toHaveBeenCalledWith({
+                where: { id: 10 },
+                data: { balance: { increment: 1500n } },
+            })
+
+            // Verify CASH_OUT ledger entries
+            expect(mockTx.ledgerEntry.createMany).toHaveBeenCalledWith({
+                data: [
+                    {
+                        accountId: 20,
+                        transactionId: result.transactionId,
+                        amount: -1500n,
+                        type: 'CASH_OUT',
+                        referenceId: tableId,
+                    },
+                    {
+                        accountId: 10,
+                        transactionId: result.transactionId,
+                        amount: 1500n,
+                        type: 'CASH_OUT',
+                        referenceId: tableId,
+                    },
+                ],
+            })
+        })
+    })
+
+    describe('getTableStateService', () => {
+        const tableId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+        const baseTable = {
+            id: 1,
+            publicId: tableId,
+            name: 'NLH 10/20 Micro',
+            status: 'WAITING',
+            currency: 'PLAY',
+            config: {
+                smallBlind: 10,
+                bigBlind: 20,
+                minBuyIn: 400,
+                maxBuyIn: 2000,
+                maxPlayers: 6,
+            },
+        }
+
+        it('should throw NotFoundError if table does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(null)
+
+            await expect(getTableStateService({ tableId })).rejects.toThrow(NotFoundError)
+        })
+
+        it('should return table metadata and engine public state', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            tableManager.sitPlayer(
+                tableId,
+                0,
+                { id: 'player-1', name: 'Alice' },
+                1000,
+                baseTable.config as any,
+            )
+
+            const result = await getTableStateService({ tableId })
+
+            expect(result.table.id).toBe(tableId)
+            expect(result.table.name).toBe('NLH 10/20 Micro')
+            expect(result.state).toBeDefined()
+            expect(result.state.players[0].name).toBe('Alice')
+            expect(result.state.players[0].stack).toBe(1000)
+            expect(result.state.players[1]).toBeNull()
         })
     })
 })

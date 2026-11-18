@@ -7,6 +7,8 @@ import {
     buyInRoute,
     createTableRoute,
     getTableRoute,
+    getTableStateRoute,
+    leaveTableRoute,
     listTablesRoute,
 } from './table/index.js'
 
@@ -31,4 +33,6 @@ export async function routes(app: FastifyInstance) {
     await app.register(listTablesRoute, { prefix: '/tables' })
     await app.register(getTableRoute, { prefix: '/tables' })
     await app.register(buyInRoute, { prefix: '/tables' })
+    await app.register(leaveTableRoute, { prefix: '/tables' })
+    await app.register(getTableStateRoute, { prefix: '/tables' })
 }

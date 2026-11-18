@@ -9,6 +9,8 @@ import {
     buyInService,
     createTableService,
     getTableService,
+    getTableStateService,
+    leaveTableService,
     listTablesService,
 } from '@/services/table/index.js'
 import { FastifyReply, FastifyRequest } from 'fastify'
@@ -49,16 +51,42 @@ export async function buyInController(
 ) {
     const { id: userId } = request.server.getCurrentUser(request)
     const { id: tableId } = request.params
-    const { amount } = request.body
+    const { amount, seat } = request.body
 
     const result = await buyInService({
         tableId,
         userId,
         amount,
+        seat,
     })
 
     return reply.status(200).send({
         buyIn: {
+            transactionId: result.transactionId,
+            tableId: result.tableId,
+            seat: result.seat,
+            amount: Number(result.amount),
+            currency: result.currency,
+            mainBalance: Number(result.mainBalance),
+            inPlayBalance: Number(result.inPlayBalance),
+        },
+    })
+}
+
+export async function leaveTableController(
+    request: FastifyRequest<{ Params: GetTableParams }>,
+    reply: FastifyReply,
+) {
+    const { id: userId } = request.server.getCurrentUser(request)
+    const { id: tableId } = request.params
+
+    const result = await leaveTableService({
+        tableId,
+        userId,
+    })
+
+    return reply.status(200).send({
+        cashOut: {
             transactionId: result.transactionId,
             tableId: result.tableId,
             amount: Number(result.amount),
@@ -67,4 +95,19 @@ export async function buyInController(
             inPlayBalance: Number(result.inPlayBalance),
         },
     })
+}
+
+export async function getTableStateController(
+    request: FastifyRequest<{ Params: GetTableParams }>,
+    reply: FastifyReply,
+) {
+    const { id: userId } = request.server.getCurrentUser(request)
+    const { id: tableId } = request.params
+
+    const result = await getTableStateService({
+        tableId,
+        userId,
+    })
+
+    return reply.status(200).send(result)
 }
