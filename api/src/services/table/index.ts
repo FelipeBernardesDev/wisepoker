@@ -264,6 +264,19 @@ export async function buyInService({ tableId, userId, amount, seat }: BuyInInput
             config,
         )
 
+        // Notifica clientes conectados via WebSocket
+        tableManager.broadcastTableUpdate(tableId, config)
+        tableManager.broadcastEvent(tableId, {
+            type: 'PLAYER_SEATED',
+            tableId,
+            player: {
+                id: userId,
+                name: user.userName,
+                seat: targetSeat,
+                stack: amount,
+            },
+        })
+
         return {
             transactionId,
             tableId: table.publicId,
@@ -375,6 +388,15 @@ export async function leaveTableService({ tableId, userId }: LeaveTableInput) {
 
         // Remove o jogador da mesa na engine
         tableManager.standPlayer(tableId, userId)
+
+        // Notifica clientes conectados via WebSocket
+        const config = table.config as unknown as TableConfig
+        tableManager.broadcastTableUpdate(tableId, config)
+        tableManager.broadcastEvent(tableId, {
+            type: 'PLAYER_LEFT',
+            tableId,
+            userId,
+        })
 
         return {
             transactionId,

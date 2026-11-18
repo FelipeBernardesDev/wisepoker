@@ -7,6 +7,7 @@ import {
     leaveTableService,
     listTablesService,
 } from '../src/services/table/index.js'
+import { tableWebSocketHandler } from '../src/http/controllers/table/index.js'
 import { prisma } from '../src/lib/prisma.js'
 import {
     BadRequestError,
@@ -682,6 +683,193 @@ describe('Table Service', () => {
             expect(result.state.players[0].name).toBe('Alice')
             expect(result.state.players[0].stack).toBe(1000)
             expect(result.state.players[1]).toBeNull()
+        })
+    })
+
+    describe('tableWebSocketHandler & TableManager Broadcast', () => {
+        const tableId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+
+        const baseTable = {
+            id: 1,
+            publicId: tableId,
+            name: 'NLH 10/20 Micro',
+            status: 'WAITING',
+            currency: 'PLAY',
+            config: {
+                smallBlind: 10,
+                bigBlind: 20,
+                minBuyIn: 400,
+                maxBuyIn: 2000,
+                maxPlayers: 6,
+            },
+        }
+
+        function createMockSocket() {
+            const listeners: Record<string, Function[]> = {}
+            return {
+                readyState: 1, // OPEN
+                send: vi.fn(),
+                close: vi.fn(),
+                on: vi.fn((event: string, cb: Function) => {
+                    if (!listeners[event]) listeners[event] = []
+                    listeners[event].push(cb)
+                }),
+                emit: (event: string, ...args: any[]) => {
+                    listeners[event]?.forEach((cb) => cb(...args))
+                },
+            }
+        }
+
+        it('should send ERROR and close socket if table does not exist', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(null)
+
+            const socket = createMockSocket()
+            const request = {
+                server: {
+                    getCurrentUser: () => ({ id: userId, role: 'PLAYER' }),
+                },
+                params: { id: tableId },
+            } as any
+
+            await tableWebSocketHandler(socket as any, request)
+
+            expect(socket.send).toHaveBeenCalledWith(
+                JSON.stringify({ type: 'ERROR', message: 'Table not found' }),
+            )
+            expect(socket.close).toHaveBeenCalled()
+        })
+
+        it('should send ERROR and close socket if table is CLOSED', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce({
+                ...baseTable,
+                status: 'CLOSED',
+            } as any)
+
+            const socket = createMockSocket()
+            const request = {
+                server: {
+                    getCurrentUser: () => ({ id: userId, role: 'PLAYER' }),
+                },
+                params: { id: tableId },
+            } as any
+
+            await tableWebSocketHandler(socket as any, request)
+
+            expect(socket.send).toHaveBeenCalledWith(
+                JSON.stringify({ type: 'ERROR', message: 'Table is closed' }),
+            )
+            expect(socket.close).toHaveBeenCalled()
+        })
+
+        it('should register connection and send TABLE_CONNECTED with initial state', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const socket = createMockSocket()
+            const request = {
+                server: {
+                    getCurrentUser: () => ({ id: userId, role: 'PLAYER' }),
+                },
+                params: { id: tableId },
+            } as any
+
+            await tableWebSocketHandler(socket as any, request)
+
+            expect(tableManager.getConnectionsCount(tableId)).toBe(1)
+            expect(socket.send).toHaveBeenCalledWith(
+                expect.stringContaining('"type":"TABLE_CONNECTED"'),
+            )
+        })
+
+        it('should respond with PONG when receiving PING message', async () => {
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const socket = createMockSocket()
+            const request = {
+                server: {
+                    getCurrentUser: () => ({ id: userId, role: 'PLAYER' }),
+                },
+                params: { id: tableId },
+            } as any
+
+            await tableWebSocketHandler(socket as any, request)
+
+            socket.emit('message', Buffer.from(JSON.stringify({ type: 'PING' })))
+
+            expect(socket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"PONG"'))
+        })
+
+        it('should broadcast table update and seated player event to connected sockets on buy-in', async () => {
+            // Conecta um socket na mesa
+            const socket = createMockSocket()
+            tableManager.addConnection(tableId, socket as any, userId)
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1, userName: 'player1' }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 10, balance: 5000n })
+                        .mockResolvedValueOnce({ id: 20, balance: 0n }),
+                    update: vi.fn().mockResolvedValue({ id: 10, balance: 4000n }),
+                },
+                ledgerEntry: {
+                    createMany: vi.fn().mockResolvedValueOnce({ count: 2 }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await buyInService({ tableId, userId, amount: 1000 })
+
+            // Socket deve ter recebido TABLE_UPDATED e PLAYER_SEATED
+            expect(socket.send).toHaveBeenCalledWith(
+                expect.stringContaining('"type":"TABLE_UPDATED"'),
+            )
+            expect(socket.send).toHaveBeenCalledWith(
+                expect.stringContaining('"type":"PLAYER_SEATED"'),
+            )
+        })
+
+        it('should broadcast player left event to connected sockets on leave', async () => {
+            // Senta jogador e adiciona socket
+            tableManager.sitPlayer(
+                tableId,
+                0,
+                { id: userId, name: 'Player1' },
+                1000,
+                baseTable.config as any,
+            )
+            const socket = createMockSocket()
+            tableManager.addConnection(tableId, socket as any, userId)
+
+            vi.mocked(prisma.table.findUnique).mockResolvedValueOnce(baseTable as any)
+
+            const mockTx = {
+                user: {
+                    findUnique: vi.fn().mockResolvedValueOnce({ id: 1 }),
+                },
+                account: {
+                    findUnique: vi
+                        .fn()
+                        .mockResolvedValueOnce({ id: 20, balance: 1000n })
+                        .mockResolvedValueOnce({ id: 10, balance: 3000n }),
+                    update: vi.fn().mockResolvedValue({ id: 20, balance: 0n }),
+                },
+                ledgerEntry: {
+                    createMany: vi.fn().mockResolvedValueOnce({ count: 2 }),
+                },
+            }
+            vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn: any) => fn(mockTx))
+
+            await leaveTableService({ tableId, userId })
+
+            expect(socket.send).toHaveBeenCalledWith(
+                expect.stringContaining('"type":"PLAYER_LEFT"'),
+            )
         })
     })
 })

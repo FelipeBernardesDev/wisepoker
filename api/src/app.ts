@@ -16,6 +16,7 @@ import { routes } from './http/routes/index.js'
 import { errorHandler } from './http/error-handler.js'
 import { fastifyCookie } from '@fastify/cookie'
 import authPlugin from '@/plugins/auth.js'
+import fastifyWebsocket from '@fastify/websocket'
 
 export const app = fastify({
     loggerInstance: logger,
@@ -53,6 +54,8 @@ app.register(fastifyCookie, {
 })
 
 app.register(authPlugin)
+
+app.register(fastifyWebsocket)
 
 app.register(fastifySwagger, {
     openapi: {

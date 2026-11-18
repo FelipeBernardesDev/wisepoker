@@ -5,6 +5,7 @@ import {
     getTableStateController,
     leaveTableController,
     listTablesController,
+    tableWebSocketHandler,
 } from '@/http/controllers/table/index.js'
 import { authorize } from '@/http/hooks/authorize.js'
 import { errorResponseSchema } from '@/http/schemas/error-response-schema.js'
@@ -254,5 +255,28 @@ export async function getTableStateRoute(app: FastifyInstance) {
             },
         },
         getTableStateController,
+    )
+}
+
+export async function tableWebSocketRoute(app: FastifyInstance) {
+    app.get(
+        '/:id/ws',
+        {
+            websocket: true,
+            onRequest: [app.authenticate],
+            schema: {
+                tags: ['Tables'],
+                summary: 'Connect to poker table real-time WebSocket',
+                description:
+                    'Establishes a bi-directional WebSocket connection for live table updates, seated player notifications, and real-time game events.',
+                security: [
+                    {
+                        cookieAuth: [],
+                    },
+                ],
+                params: getTableParamsSchema,
+            },
+        },
+        tableWebSocketHandler,
     )
 }
